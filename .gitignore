@@ -133,3 +133,6 @@ dist
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Firebase
+serviceAccountKey.json

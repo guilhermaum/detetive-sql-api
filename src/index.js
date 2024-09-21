@@ -1,26 +1,10 @@
 import { authenticate } from './sql/db.js';
-import {
-  createTableUsers,
-  insertTableUsers,
-  queryTable,
-} from './service/repository.js';
+import { queryTable } from './service/repository.js';
+import './firebase/config.js';
 
 async function init() {
   const connection = await authenticate();
-
-  // await createTableUsers(connection);
-  // await insertTableUsers(connection);
-
-  const table = await queryTable(
-    connection,
-    "SELECT id, COUNT(*) AS qnt FROM (\
-        SELECT * FROM users\
-        UNION ALL\
-        SELECT * FROM users WHERE name LIKE '%a%'\
-    ) AS combined\
-    GROUP BY id\
-    HAVING qnt != 2;",
-  );
+  const table = await queryTable(connection, "SELECT * FROM users;");
 
   for (let row of table) {
     let rowStr = '| ';

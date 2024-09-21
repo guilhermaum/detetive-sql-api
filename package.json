@@ -11,6 +11,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "firebase": "^10.13.2",
+    "firebase-admin": "^12.5.0",
     "sequelize": "^6.37.3",
     "sqlite3": "^5.1.7"
   }
