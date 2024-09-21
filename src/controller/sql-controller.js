@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { connection } from "../sql/db.js";
 import { queryTable } from "../service/sqlite.js";
 
 const sqlController = Router();
@@ -8,7 +7,7 @@ sqlController.get("/sql/select", async (req, res) => {
   const { query } = req.body;
   if(query) {
     try {
-      const table = await queryTable(connection, query);
+      const table = await queryTable(query);
       res.status(200).json(table);
     } catch(err) {
       console.error(err);

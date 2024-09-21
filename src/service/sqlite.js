@@ -1,4 +1,6 @@
-async function createTableUsers(connection) {
+import { connection } from "../sql/config.js";
+
+async function createTableUsers() {
   await connection.query(
     'CREATE TABLE users (\
         id INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -11,7 +13,7 @@ async function createTableUsers(connection) {
   );
 }
 
-async function insertTableUsers(connection) {
+async function insertTableUsers() {
   await connection.query(
     "INSERT INTO users (name, email) VALUES\
     ('Alice Smith', 'alice.smith@example.com'),\
@@ -40,7 +42,7 @@ async function insertTableUsers(connection) {
   );
 }
 
-async function queryTable(connection, query) {
+async function queryTable(query) {
   return await connection.query(query, {
     type: connection.QueryTypes.SELECT,
   });
