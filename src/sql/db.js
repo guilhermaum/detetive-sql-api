@@ -3,9 +3,9 @@ import SQLite from 'sqlite3';
 
 const connection = new Sequelize('database', 'username', '12345678', {
   dialect: 'sqlite',
-  storage: './database.sqlite',
+  storage: './sql-murder-mystery.db',
   dialectOptions: {
-    mode: SQLite.OPEN_READWRITE | SQLite.OPEN_CREATE | SQLite.OPEN_FULLMUTEX,
+    mode: SQLite.OPEN_READONLY,
   },
 });
 
