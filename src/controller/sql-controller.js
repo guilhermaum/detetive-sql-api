@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { connection } from "../sql/db.js";
-import { queryTable } from "../service/repository.js";
+import { queryTable } from "../service/sqlite.js";
 
 const sqlController = Router();
 

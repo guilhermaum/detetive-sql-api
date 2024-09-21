@@ -1,4 +1,4 @@
-import { db } from "./config.js";
+import { db } from "../firebase/config.js";
 
 async function create(local, data) {
   try {
