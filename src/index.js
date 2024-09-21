@@ -1,18 +1,14 @@
-import { authenticate } from './sql/db.js';
-import { queryTable } from './service/repository.js';
+import express from "express";
 import './firebase/config.js';
+import "./sql/db.js";
+import sqlController from "./controller/sql-controller.js";
 
-async function init() {
-  const connection = await authenticate();
-  const table = await queryTable(connection, "SELECT * FROM crime_scene_report WHERE type = 'murder' AND date = '20180115' AND city = 'SQL City'");
+const server = express();
 
-  for (let row of table) {
-    let rowStr = '| ';
-    for (let column in row) {
-      rowStr += `${row[column]} : ${column} | `;
-    }
-    console.log(rowStr);
-  }
-}
+server.use(express.urlencoded({ extended: true }));
+server.use(express.json());
+server.use(sqlController);
 
-init();
+server.listen(3000, _ => {
+  console.log("Server running.");
+});
