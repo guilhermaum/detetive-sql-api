@@ -3,7 +3,7 @@ import { queryTable } from "../service/sqlite.js";
 
 const sqlController = Router();
 
-sqlController.get("/sql/select", async (req, res) => {
+sqlController.post("/sql/select", async (req, res) => {
   const { query } = req.body;
   if(query) {
     try {

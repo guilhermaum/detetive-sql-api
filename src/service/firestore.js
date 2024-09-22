@@ -25,11 +25,22 @@ async function findById(local, id) {
 
 async function findAll(local) {
   const snapshot = await db.collection(local).get();
-  const dataList = snapshot.docs.map(doc => ({
+  const dataList = snapshot.docs.map((doc) => ({
     id: doc.id,
-    ...doc.data()
+    ...doc.data(),
   }));
   return dataList;
 }
 
-export { create, findById, findAll };
+async function checkAnswers(local, id, inputs) {
+  let check = !!inputs;
+  for (let prop in inputs) {
+    const { template } = await findById(local, id);
+    const input = inputs[prop];
+    const answer = template[prop];
+    check = check && input === answer;
+  }
+  return check;
+}
+
+export { create, findById, findAll, checkAnswers };

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { create, findById } from "../service/firestore.js";
+import { checkAnswers, create, findById } from "../service/firestore.js";
 
 const levelController = Router();
 
@@ -14,6 +14,13 @@ levelController.get("/levels/:id", async (req, res) => {
   const { id } = req.params;
   const level = await findById("levels", id);
   res.status(200).json(level);
+});
+
+levelController.post("/levels/:id/check", async (req, res) => {
+  const { id } = req.params;
+  const { inputs } = req.body;
+  const check = await checkAnswers("levels", id, inputs);
+  res.status(200).json({ check });
 });
 
 export default levelController;
