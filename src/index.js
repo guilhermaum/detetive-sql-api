@@ -19,6 +19,7 @@ server.use(sqlController);
 server.use(gameController);
 server.use(levelController);
 
-server.listen(3000, _ => {
+const port = process.env.PORT || 3000;
+server.listen(port, _ => {
   console.log("Server running.");
 });
