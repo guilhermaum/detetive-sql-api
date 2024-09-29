@@ -5,16 +5,18 @@ const sqlController = Router();
 
 sqlController.post("/sql/select", async (req, res) => {
   const { query } = req.body;
-  if(query) {
+  if (query) {
     try {
       const table = await queryTable(query);
       res.status(200).json(table);
-    } catch(err) {
+    } catch (err) {
       console.error(err);
+      res.status(500).json({ message: "Sever error." });
     }
-  } else res.status(400).json({
-    message: "Parâmetro 'query' não encontrado."
-  });
+  } else
+    res.status(400).json({
+      message: "Parâmetro 'query' não encontrado.",
+    });
 });
 
 export default sqlController;
