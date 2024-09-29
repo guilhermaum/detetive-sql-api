@@ -12,7 +12,7 @@ levelController.post("/levels", async (req, res) => {
     res.status(201).json({ id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Sever error." });
+    res.status(500).json({ message: "Erro no servidor. Tente mais tarde." });
   }
 });
 
@@ -23,7 +23,7 @@ levelController.get("/levels/:id", async (req, res) => {
     res.status(200).json(level);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Sever error." });
+    res.status(500).json({ message: "Erro no servidor. Tente mais tarde." });
   }
 });
 
@@ -35,7 +35,7 @@ levelController.post("/levels/:id/check", async (req, res) => {
     res.status(200).json({ check });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Sever error." });
+    res.status(500).json({ message: "Erro no servidor. Tente mais tarde." });
   }
 });
 
