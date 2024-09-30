@@ -1,4 +1,4 @@
-import e, { Router } from "express";
+import { Router } from "express";
 import { queryTable } from "../service/sqlite.js";
 import { Sequelize } from "sequelize";
 

@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { checkAnswers, create, findById } from "../service/firestore.js";
+import blocker from "../middleware/blocker.js";
 
 const levelController = Router();
-
-levelController.post("/levels", async (req, res) => {
+ 
+levelController.post("/levels", blocker, async (req, res) => {
   try {
-    const { level, title, stories, tables, der, problems, templates } =
+    const { number, tips, problems, template } =
       req.body;
-    const data = { level, title, stories, tables, der, problems, templates };
+    const data = { number, tips, problems, template };
     const id = await create("levels", data);
     res.status(201).json({ id });
   } catch (err) {
