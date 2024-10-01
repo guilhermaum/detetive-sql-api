@@ -12,6 +12,20 @@ const level1 = {
     description:
       'Security footage shows that there were 2 witnesses. The first witness lives at the last house on "Northwestern Dr". The second witness, named Annabel, lives somewhere on "Franklin Ave".',
   },
+  helps: [
+    {
+      title: "Quais tabelas devo usar na consulta?",
+      tip: "crime_scene_report"
+    },
+    {
+      title: "Quais colunas devo usar na consulta?",
+      tip: "type, date, city"
+    },
+    {
+      title: "Quais operadores devo usar na consulta?",
+      tip: "=, AND"
+    }
+  ]
 };
 
 const level2 = {
@@ -27,6 +41,20 @@ const level2 = {
     id: "14887",
     name: "Morty Schapiro",
   },
+  helps: [
+    {
+      title: "Quais tabelas devo usar na consulta?",
+      tip: "person"
+    },
+    {
+      title: "Quais colunas devo usar na consulta?",
+      tip: "address_street_name, address_number"
+    },
+    {
+      title: "Quais operadores devo usar na consulta?",
+      tip: "=, ORDER BY, LIMIT"
+    }
+  ]
 };
 
 const level3 = {
@@ -42,6 +70,20 @@ const level3 = {
     id: "16371",
     name: "Annabel Miller",
   },
+  helps: [
+    {
+      title: "Quais tabelas devo usar na consulta?",
+      tip: "person"
+    },
+    {
+      title: "Quais colunas devo usar na consulta?",
+      tip: "name, address_street_name"
+    },
+    {
+      title: "Quais operadores devo usar na consulta?",
+      tip: "=, AND, LIKE"
+    }
+  ]
 };
 
 const level4 = {
@@ -57,6 +99,20 @@ const level4 = {
     transcript:
       'I heard a gunshot and then saw a man run out. He had a "Get Fit Now Gym" bag. The membership number on the bag started with "48Z". Only gold members have those bags. The man got into a car with a plate that included "H42W".',
   },
+  helps: [
+    {
+      title: "Quais tabelas devo usar na consulta?",
+      tip: "interview, person"
+    },
+    {
+      title: "Quais colunas devo usar na consulta?",
+      tip: "interview.person_id, person.id"
+    },
+    {
+      title: "Quais operadores devo usar na consulta?",
+      tip: "=, JOIN"
+    }
+  ]
 };
 
 const level5 = {
@@ -72,6 +128,20 @@ const level5 = {
     transcript:
       "I saw the murder happen, and I recognized the killer from my gym when I was working out last week on January the 9th.",
   },
+  helps: [
+    {
+      title: "Quais tabelas devo usar na consulta?",
+      tip: "interview, person"
+    },
+    {
+      title: "Quais colunas devo usar na consulta?",
+      tip: "interview.person_id, person.id"
+    },
+    {
+      title: "Quais operadores devo usar na consulta?",
+      tip: "=, JOIN"
+    }
+  ]
 };
 
 const level6 = {
@@ -83,12 +153,25 @@ const level6 = {
   ],
   problems: [
     "Seu objetivo é identificar o assassino com base nas informações fornecidas pelas testemunhas.",
-    "Pode ser necessário realizar várias consultas no banco de dados para isso.",
   ],
   template: {
     id: "67318",
     name: "Jeremy Bowers",
   },
+  helps: [
+    {
+      title: "Quais tabelas devo usar na consulta?",
+      tip: "person, drivers_license, get_fit_now_member"
+    },
+    {
+      title: "Quais colunas devo usar na consulta?",
+      tip: "person.id, person.license_id, drivers_license.id, drivers_license.plate_number, get_fit_now_member.id, get_fit_now_member.person_id, get_fit_now_member.membership_status"
+    },
+    {
+      title: "Quais operadores devo usar na consulta?",
+      tip: "=, JOIN, AND, LIKE"
+    }
+  ]
 };
 
 const level7 = {
@@ -105,6 +188,20 @@ const level7 = {
     transcript:
       "I was hired by a woman with a lot of money. I don't know her name but I know she's around 5'5\" (65\") or 5'7\" (67\"). She has red hair and she drives a Tesla Model S. I know that she attended the SQL Symphony Concert 3 times in December 2017.",
   },
+  helps: [
+    {
+      title: "Quais tabelas devo usar na consulta?",
+      tip: "interview, person"
+    },
+    {
+      title: "Quais colunas devo usar na consulta?",
+      tip: "interview.person_id, person.id"
+    },
+    {
+      title: "Quais operadores devo usar na consulta?",
+      tip: "=, JOIN"
+    }
+  ]
 };
 
 const level8 = {
@@ -117,12 +214,25 @@ const level8 = {
   ],
   problems: [
     "Seu objetivo é identificar o verdadeiro vilão com base nas informações fornecidas pelo assassino.",
-    "Pode ser necessário realizar várias consultas no banco de dados para isso.",
   ],
   template: {
     id: "99716",
     name: "Miranda Priestly",
   },
+  helps: [
+    {
+      title: "Quais tabelas devo usar na consulta?",
+      tip: "person, drivers_license, facebook_event_checkin"
+    },
+    {
+      title: "Quais colunas devo usar na consulta?",
+      tip: "person.id, person.license_id, drivers_license.id, drivers_license.gender, drivers_license.car_makem, drivers_license.car_model, facebook_event_checkin.person_id, facebook_event_checkin.event_name"
+    },
+    {
+      title: "Quais operadores devo usar na consulta?",
+      tip: "=, JOIN, AND, BETWEEN, LIKE"
+    }
+  ]
 };
 
 const levels = [level1, level2, level3, level4, level5, level6, level7, level8];
