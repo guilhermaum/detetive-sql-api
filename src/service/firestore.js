@@ -36,11 +36,15 @@ async function checkAnswers(local, id, inputs) {
   let check = !!inputs;
   for (let prop in inputs) {
     const { template } = await findById(local, id);
-    const input = inputs[prop];
-    const answer = template[prop];
+    const input = format(inputs[prop]);
+    const answer = format(template[prop]);
     check = check && input === answer;
   }
   return check;
+}
+
+function format(str) {
+  return str.trim().toLowerCase();
 }
 
 export { create, findById, findAll, checkAnswers };
