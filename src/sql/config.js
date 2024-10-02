@@ -1,9 +1,16 @@
 import { Sequelize } from 'sequelize';
 import SQLite from 'sqlite3';
+import path from "path";
+import { fileURLToPath } from "url";
 
-const connection = new Sequelize('database', 'username', '12345678', {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const dbPath = path.join(__dirname, "sql-murder-mystery.db");
+
+const connection = new Sequelize({
   dialect: 'sqlite',
-  storage: './sql-murder-mystery.db',
+  storage: dbPath,
   dialectOptions: { mode: SQLite.OPEN_READONLY },
 });
 
