@@ -7,6 +7,12 @@ const connection = new Sequelize('database', 'username', '12345678', {
   dialectOptions: { mode: SQLite.OPEN_READONLY },
 });
 
-await connection.authenticate();
+try {
+  await connection.authenticate();
+}
+catch(err) {
+  console.log("Connection with database failed.")
+  console.error(err);
+}
 
 export { connection };
