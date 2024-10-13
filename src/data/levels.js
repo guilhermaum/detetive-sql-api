@@ -2,24 +2,24 @@ const level1 = {
   number: 1,
   tips: [
     "Um crime foi cometido, e como detetive, sua missão é resolver o caso. A perícia forneceu um relatório detalhado da cena do crime, mas você, de alguma forma, o perdeu.",
-    "Tudo o que você lembra é que o incidente foi um assassinato ocorrido em 15 de janeiro de 2018, em SQL City.",
+    "Tudo o que você lembra é que o incidente foi um assassinato ocorrido em 6 de outubro de 2023, em São Paulo.",
     "Sua primeira tarefa é recuperar o relatório da cena do crime no banco de dados do departamento de polícia.",
   ],
   problems: [
     "Seu objetivo é descobrir a descrição completa dos acontecimentos na cena do crime.",
   ],
   template: {
-    description:
-      'Security footage shows that there were 2 witnesses. The first witness lives at the last house on "Northwestern Dr". The second witness, named Annabel, lives somewhere on "Franklin Ave".',
+    descricao:
+      "Imagens de segurança mostram que havia 2 testemunhas. A primeira testemunha mora na última casa na Avenida Carlos Gomes em Porto Alegre. A segunda testemunha, chamada Estefane, mora em algum lugar na Rua Augusta em São Paulo.",
   },
   helps: [
     {
       title: "Quais tabelas devo usar na consulta?",
-      tip: "crime_scene_report"
+      tip: "relatorios_criminais"
     },
     {
       title: "Quais colunas devo usar na consulta?",
-      tip: "type, date, city"
+      tip: "categoria, data, cidade"
     },
     {
       title: "Quais operadores devo usar na consulta?",
@@ -32,23 +32,23 @@ const level2 = {
   number: 2,
   tips: [
     "Imagens de segurança revelam que havia duas testemunhas no local.",
-    "A primeira testemunha reside na última casa da 'Northwestern Dr'.",
+    "A primeira testemunha reside na última casa da Avenida Carlos Gomes em Porto Alegre.",
   ],
   problems: [
     "Seu objetivo é identificar a testemunha que corresponde à descrição fornecida.",
   ],
   template: {
-    id: "14887",
-    name: "Morty Schapiro",
+    id: "6843",
+    nome: "João Victor",
   },
   helps: [
     {
       title: "Quais tabelas devo usar na consulta?",
-      tip: "person"
+      tip: "pessoas"
     },
     {
       title: "Quais colunas devo usar na consulta?",
-      tip: "address_street_name, address_number"
+      tip: "logradouro, numero, cidade"
     },
     {
       title: "Quais operadores devo usar na consulta?",
@@ -61,23 +61,23 @@ const level3 = {
   number: 3,
   tips: [
     "Imagens de segurança mostram que havia duas testemunhas.",
-    "A segunda testemunha, chamada Annabel, vive em algum lugar na 'Franklin Ave'.",
+    "A segunda testemunha, chamada Estefane, vive em algum lugar na Rua Augusta em São Paulo.",
   ],
   problems: [
     "Seu objetivo é identificar a testemunha que corresponde à descrição.",
   ],
   template: {
-    id: "16371",
-    name: "Annabel Miller",
+    id: "5098",
+    nome: "Estefane Ribeiro",
   },
   helps: [
     {
       title: "Quais tabelas devo usar na consulta?",
-      tip: "person"
+      tip: "pessoas"
     },
     {
       title: "Quais colunas devo usar na consulta?",
-      tip: "name, address_street_name"
+      tip: "nome, logradouro, cidade"
     },
     {
       title: "Quais operadores devo usar na consulta?",
@@ -89,24 +89,24 @@ const level3 = {
 const level4 = {
   number: 4,
   tips: [
-    "Uma das testemunhas é Morty Schapiro, identificado pelo número '14887', residente no endereço Northwestern Dr, 4919.",
+    "Uma das testemunhas é João Victor, identificado pelo número '6843', residente no endereço Avenida Carlos Gomes, 1024, Porto Alegre.",
     "Ele foi entrevistado pela equipe de polícia, e as transcrições dessa entrevista estão armazenadas no banco de dados.",
   ],
   problems: [
     "Seu objetivo é recuperar as transcrições da entrevista realizada com a testemunha.",
   ],
   template: {
-    transcript:
-      'I heard a gunshot and then saw a man run out. He had a "Get Fit Now Gym" bag. The membership number on the bag started with "48Z". Only gold members have those bags. The man got into a car with a plate that included "H42W".',
+    transcricao:
+      "Ouvi um tiro e então vi um homem correndo para fora. Ele tinha uma sacola escrito 'Fitness 360'. O número de membro na sacola começava com '6J5'. Somente membros Ouro têm essas sacolas. O homem entrou em um carro com uma placa que incluía '3J45'.",
   },
   helps: [
     {
       title: "Quais tabelas devo usar na consulta?",
-      tip: "interview, person"
+      tip: "entrevistas, pessoas"
     },
     {
       title: "Quais colunas devo usar na consulta?",
-      tip: "interview.person_id, person.id"
+      tip: "entrevistas.pessoa_id, pessoas.id"
     },
     {
       title: "Quais operadores devo usar na consulta?",
@@ -118,24 +118,24 @@ const level4 = {
 const level5 = {
   number: 5,
   tips: [
-    "A outra testemunha é Annabel Miller, identificada pelo número '16371', residente no endereço Franklin Ave, 103.",
+    "A outra testemunha é Estefane Ribeiro, identificada pelo número '5098', residente no endereço Rua Augusta, 30, São Paulo.",
     "Ela foi entrevistada pela equipe de polícia, e as transcrições dessa entrevista estão armazenadas no banco de dados.",
   ],
   problems: [
     "Seu objetivo é recuperar as transcrições da entrevista realizada com a testemunha.",
   ],
   template: {
-    transcript:
-      "I saw the murder happen, and I recognized the killer from my gym when I was working out last week on January the 9th.",
+    transcricao:
+      "Eu vi o assassinato acontecer e reconheci o assassino da minha academia quando estava malhando na semana passada, dia 17 de setembro.",
   },
   helps: [
     {
       title: "Quais tabelas devo usar na consulta?",
-      tip: "interview, person"
+      tip: "entrevistas, pessoas"
     },
     {
       title: "Quais colunas devo usar na consulta?",
-      tip: "interview.person_id, person.id"
+      tip: "entrevistas.pessoa_id, pessoas.id"
     },
     {
       title: "Quais operadores devo usar na consulta?",
@@ -147,25 +147,25 @@ const level5 = {
 const level6 = {
   number: 6,
   tips: [
-    "Uma das testemunhas ouviu um tiro e viu um homem saindo correndo. Ele carregava uma sacola do 'Get Fit Now Gym'.",
-    "O número de membro na sacola começava com '48Z', e apenas membros Gold têm acesso a essas sacolas. O homem entrou em um carro cuja placa incluía 'H42W'.",
-    "A outra testemunha relatou que presenciou o assassinato e reconheceu o assassino como alguém que viu na academia enquanto malhava na semana passada, no dia 9 de janeiro.",
+    "Uma das testemunhas ouviu um tiro e viu um homem saindo correndo. Ele carregava uma sacola escrito 'Fitness 360'.",
+    "O número de membro na sacola começava com '6J5', e apenas membros Ouro têm acesso a essas sacolas. O homem entrou em um carro cuja placa incluía '3J45'.",
+    "A outra testemunha relatou que presenciou o assassinato e reconheceu o assassino como alguém que viu na academia enquanto malhava na semana passada, no dia 17 de setembro.",
   ],
   problems: [
     "Seu objetivo é identificar o assassino com base nas informações fornecidas pelas testemunhas.",
   ],
   template: {
-    id: "67318",
-    name: "Jeremy Bowers",
+    id: "7507",
+    nome: "Gabriel Braga",
   },
   helps: [
     {
       title: "Quais tabelas devo usar na consulta?",
-      tip: "person, drivers_license, get_fit_now_member"
+      tip: "pessoas, carteiras_motorista, registros_academias"
     },
     {
       title: "Quais colunas devo usar na consulta?",
-      tip: "person.id, person.license_id, drivers_license.id, drivers_license.plate_number, get_fit_now_member.id, get_fit_now_member.person_id, get_fit_now_member.membership_status"
+      tip: "pessoas.id, pessoas.carteira_id, carteiras_motorista.id, carteiras_motorista.placa_carro, registros_academias.id, registros_academias.pessoa_id, registros_academias.academia, registros_academias.codigo_membro, registros_academias.status_membro"
     },
     {
       title: "Quais operadores devo usar na consulta?",
@@ -178,24 +178,24 @@ const level7 = {
   number: 7,
   tips: [
     "Parabéns, você encontrou o assassino! Mas espere, há mais... o verdadeiro vilão por trás deste crime ainda está à solta.",
-    "O assassino se chama Jeremy Bowers, identificado pelo número '67318', e é membro Gold da academia.",
+    "O assassino se chama Gabriel Braga, identificado pelo número '7507', e é membro Ouro da academia Fitness 360.",
     "Ele foi entrevistado pela polícia e forneceu mais detalhes sobre o crime.",
   ],
   problems: [
     "Seu objetivo é recuperar as transcrições da entrevista realizada com o assassino.",
   ],
   template: {
-    transcript:
-      "I was hired by a woman with a lot of money. I don't know her name but I know she's around 5'5\" (65\") or 5'7\" (67\"). She has red hair and she drives a Tesla Model S. I know that she attended the SQL Symphony Concert 3 times in December 2017.",
+    transcricao:
+      "Fui contratado por uma mulher com muito dinheiro. Não sei o nome dela, mas sei que ela tem cerca de 180 ou 190 centímetros. Ela tem cabelo preto e dirige um Hyundai Creta. Sei que ela foi a Conferência de Inteligência Artificial 3 vezes em agosto de 2015.",
   },
   helps: [
     {
       title: "Quais tabelas devo usar na consulta?",
-      tip: "interview, person"
+      tip: "entrevistas, pessoas"
     },
     {
       title: "Quais colunas devo usar na consulta?",
-      tip: "interview.person_id, person.id"
+      tip: "entrevistas.pessoa_id, pessoas.id"
     },
     {
       title: "Quais operadores devo usar na consulta?",
@@ -208,25 +208,25 @@ const level8 = {
   number: 8,
   tips: [
     "O assassino relatou na entrevista que foi contratado por uma mulher rica.",
-    "Ele disse que não sabe o nome dela, mas mencionou que ela tem aproximadamente 5'5\" (65\") ou 5'7\" (67\") de altura.",
-    "Ela possui cabelo ruivo e dirige um Tesla Model S.",
-    "Além disso, ele informou que ela compareceu ao SQL Symphony Concert três vezes em dezembro de 2017.",
+    "Ele disse que não sabe o nome dela, mas mencionou que ela tem aproximadamente 180 ou 190 centímetros de altura.",
+    "Ela possui cabelo preto e dirige um Hyundai Creta.",
+    "Além disso, ele informou que ela compareceu a Conferência de Inteligência Artificial três vezes em agosto de 2015.",
   ],
   problems: [
     "Seu objetivo é identificar o verdadeiro vilão com base nas informações fornecidas pelo assassino.",
   ],
   template: {
-    id: "99716",
-    name: "Miranda Priestly",
+    id: "6009",
+    nome: "Cynthia Pinheiro",
   },
   helps: [
     {
       title: "Quais tabelas devo usar na consulta?",
-      tip: "person, drivers_license, facebook_event_checkin"
+      tip: "pessoas, carteiras_motorista, registros_eventos"
     },
     {
       title: "Quais colunas devo usar na consulta?",
-      tip: "person.id, person.license_id, drivers_license.id, drivers_license.gender, drivers_license.car_makem, drivers_license.car_model, facebook_event_checkin.person_id, facebook_event_checkin.event_name"
+      tip: "pessoas.id, pessoas.carteira_id, carteiras_motorista.id, carteiras_motorista.sexo, carteiras_motorista.marca_carro, carteiras_motorista.modelo_carro, registros_eventos.pessoa_id, registros_eventos.evento"
     },
     {
       title: "Quais operadores devo usar na consulta?",

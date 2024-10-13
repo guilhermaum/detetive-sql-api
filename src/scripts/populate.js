@@ -11,12 +11,12 @@ async function populate() {
       levelsInserted.push(idLevel);
     }
     const idGame = await create("games", { levels: levelsInserted, last: 7 });
+    console.log("ID", idGame);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Erro no servidor. Tente mais tarde." });
   }
   console.log("Complete.");
-  console.log("ID: ", idGame);
 }
 
 populate();
