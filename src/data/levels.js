@@ -186,7 +186,7 @@ const level7 = {
   ],
   template: {
     transcricao:
-      "Fui contratado por uma mulher com muito dinheiro. Não sei o nome dela, mas sei que ela tem cerca de 180 ou 190 centímetros. Ela tem cabelo preto e dirige um Hyundai Creta. Sei que ela foi a Conferência de Inteligência Artificial 3 vezes em agosto de 2015.",
+      "Fui contratado por uma mulher com muito dinheiro. Não sei o nome dela, mas sei que ela tem cerca de 170 ou 180 centímetros. Ela tem cabelo loiro e dirige um Hyundai Creta. Sei que ela foi a Conferência de Inteligência Artificial 3 vezes em agosto de 2015.",
   },
   helps: [
     {
@@ -208,8 +208,8 @@ const level8 = {
   number: 8,
   tips: [
     "O assassino relatou na entrevista que foi contratado por uma mulher rica.",
-    "Ele disse que não sabe o nome dela, mas mencionou que ela tem aproximadamente 180 ou 190 centímetros de altura.",
-    "Ela possui cabelo preto e dirige um Hyundai Creta.",
+    "Ele disse que não sabe o nome dela, mas mencionou que ela tem aproximadamente 170 ou 180 centímetros de altura.",
+    "Ela possui cabelo loiro e dirige um Hyundai Creta.",
     "Além disso, ele informou que ela compareceu a Conferência de Inteligência Artificial três vezes em agosto de 2015.",
   ],
   problems: [
@@ -217,7 +217,7 @@ const level8 = {
   ],
   template: {
     id: "6009",
-    nome: "Cynthia Pinheiro",
+    nome: "Nazaré Tedesco",
   },
   helps: [
     {
