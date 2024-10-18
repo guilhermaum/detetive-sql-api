@@ -32,6 +32,26 @@ async function findAll(local) {
   return dataList;
 }
 
+async function findWithFilters(local, filters = [], order = null) {
+  let query = db.collection(local);
+  
+  filters.forEach(({ fd, op, vl }) => {
+    query = query.where(fd, op, vl);
+  });
+  
+  if (order) {
+    const { field, direction = "asc" } = order;
+    query = query.orderBy(field, direction);
+  }
+  
+  const snapshot = await query.get();
+  const dataList = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+  return dataList;
+}
+
 async function checkAnswers(local, id, inputs) {
   let check = !!inputs;
   for (let prop in inputs) {
@@ -47,4 +67,4 @@ function format(str) {
   return str.trim().toLowerCase();
 }
 
-export { create, findById, findAll, checkAnswers };
+export { create, findById, findAll, findWithFilters, checkAnswers };

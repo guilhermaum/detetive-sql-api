@@ -8,6 +8,7 @@ import cors from "cors";
 import sqlController from "./controller/sql-controller.js";
 import gameController from "./controller/game-controller.js";
 import levelController from "./controller/level-controller.js";
+import playerController from "./controller/player-controller.js";
 
 const server = express();
 
@@ -18,6 +19,7 @@ server.use(express.json());
 server.use(sqlController);
 server.use(gameController);
 server.use(levelController);
+server.use(playerController);
 
 const port = process.env.PORT || 3000;
 server.listen(port, _ => {
