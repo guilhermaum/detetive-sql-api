@@ -216,8 +216,8 @@ const level8 = {
     "Seu objetivo é identificar o verdadeiro vilão com base nas informações fornecidas pelo assassino.",
   ],
   template: {
-    id: "6009",
     nome: "Nazaré Tedesco",
+    id: "6009",
   },
   helps: [
     {

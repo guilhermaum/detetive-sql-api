@@ -32,7 +32,7 @@ playerController.get("/players", async (req, res) => {
 
 playerController.get("/players/ranking", async (req, res) => {
   try {
-    const fielters = [{ fd: "complete", op: "==", vl: true }]
+    const fielters = [{ fd: "won", op: "==", vl: true }]
     const order = { field: "score", direction: "desc" }
     const players = await findWithFilters("players", fielters, order);
     res.status(200).json(players);
