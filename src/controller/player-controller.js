@@ -6,12 +6,24 @@ const playerController = Router();
 playerController.post("/players", async (req, res) => {
   try {
     const {
-      username, score, level, statements, currentLevel,
-      startTime, endTime, won, errors, helps
+      gameTime,
+      username,
+      scoreGame,
+      sqlStatements,
+      timesByLevel,
+      helpCount,
+      faultCount,
+      helps
     } = req.body;
     const id = await create("players", {
-      username, score, level, statements, currentLevel,
-      startTime, endTime, won, errors, helps
+      gameTime,
+      username,
+      scoreGame,
+      sqlStatements,
+      timesByLevel,
+      helpCount,
+      faultCount,
+      helps,
     });
     res.status(200).json({ play: id });
   } catch (err) {

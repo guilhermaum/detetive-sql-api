@@ -10,7 +10,7 @@ async function populate() {
       const idLevel = await create("levels", level);
       levelsInserted.push(idLevel);
     }
-    const idGame = await create("games", { levels: levelsInserted, last: 7 });
+    const idGame = await create("games", { levels: levelsInserted, last: 8 });
     console.log("ID", idGame);
   } catch (err) {
     console.error(err);
