@@ -32,17 +32,16 @@ async function findAll(local) {
   return dataList;
 }
 
-async function findWithFilters(local, filters = [], order = null) {
+async function findWithFilters(local, filters = [], orders = []) {
   let query = db.collection(local);
   
   filters.forEach(({ fd, op, vl }) => {
     query = query.where(fd, op, vl);
   });
-  
-  if (order) {
-    const { field, direction = "asc" } = order;
-    query = query.orderBy(field, direction);
-  }
+
+  orders.forEach(({ fd, dr }) => {
+    query = query.orderBy(fd, dr);
+  });
   
   const snapshot = await query.get();
   const dataList = snapshot.docs.map((doc) => ({

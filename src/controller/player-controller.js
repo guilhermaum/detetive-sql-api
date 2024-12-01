@@ -5,26 +5,8 @@ const playerController = Router();
 
 playerController.post("/players", async (req, res) => {
   try {
-    const {
-      gameTime,
-      username,
-      scoreGame,
-      sqlStatements,
-      timesByLevel,
-      helpCount,
-      faultCount,
-      helps
-    } = req.body;
-    const id = await create("players", {
-      gameTime,
-      username,
-      scoreGame,
-      sqlStatements,
-      timesByLevel,
-      helpCount,
-      faultCount,
-      helps,
-    });
+    const { ...data } = req.body;
+    const id = await create("players", data);
     res.status(200).json({ play: id });
   } catch (err) {
     console.error(err);
@@ -44,9 +26,12 @@ playerController.get("/players", async (req, res) => {
 
 playerController.get("/players/ranking", async (req, res) => {
   try {
-    const fielters = [{ fd: "won", op: "==", vl: true }]
-    const order = { field: "score", direction: "desc" }
-    const players = await findWithFilters("players", fielters, order);
+    const fielters = [{ fd: "won", op: "==", vl: true }];
+    const orders = [
+      { fd: "scoreGame", dr: "desc" },
+      { fd: "departureDate", dr: "asc" }
+    ];
+    const players = await findWithFilters("players", fielters, orders);
     res.status(200).json(players);
   } catch (err) {
     console.error(err);
