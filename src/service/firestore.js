@@ -1,4 +1,4 @@
-import { db } from "../firebase/config.js";
+import { db } from '../firebase/config.js';
 
 async function create(local, data) {
   try {
@@ -7,6 +7,17 @@ async function create(local, data) {
   } catch (err) {
     console.error(err);
     throw new Error(`Algo de errado em salvar na coleção ${local}.`);
+  }
+}
+
+async function update(local, id, data) {
+  try {
+    const docRef = db.collection(local).doc(id);
+    await docRef.update(data);
+    return docRef.id;
+  } catch (err) {
+    console.error(err);
+    throw new Error(`Algo de errado em atualizar na coleção ${local}.`);
   }
 }
 
@@ -34,7 +45,7 @@ async function findAll(local) {
 
 async function findWithFilters(local, filters = [], orders = []) {
   let query = db.collection(local);
-  
+
   filters.forEach(({ fd, op, vl }) => {
     query = query.where(fd, op, vl);
   });
@@ -42,7 +53,7 @@ async function findWithFilters(local, filters = [], orders = []) {
   orders.forEach(({ fd, dr }) => {
     query = query.orderBy(fd, dr);
   });
-  
+
   const snapshot = await query.get();
   const dataList = snapshot.docs.map((doc) => ({
     id: doc.id,
@@ -66,4 +77,4 @@ function format(str) {
   return str.trim().toLowerCase();
 }
 
-export { create, findById, findAll, findWithFilters, checkAnswers };
+export { create, update, findById, findAll, findWithFilters, checkAnswers };
