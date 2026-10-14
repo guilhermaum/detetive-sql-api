@@ -136,3 +136,6 @@ dist
 
 # Firebase
 serviceAccountKey.json
+
+# Local SQLite database for cases, levels, and game sessions
+.data/

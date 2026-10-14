@@ -1,51 +1,42 @@
-import { connection } from "../sql/config.js";
+import { createCaseDatabase, databaseReady } from "../sql/config.js";
 
-async function createTableUsers() {
-  await connection.query(
-    'CREATE TABLE users (\
-        id INTEGER PRIMARY KEY AUTOINCREMENT,\
-        name TEXT NOT NULL,\
-        email TEXT UNIQUE NOT NULL\
-    );',
-    {
-      type: connection.QueryTypes.CREATE,
-    },
-  );
+function assertReadOnlySelect(query) {
+  if (typeof query !== "string" || !query.trim()) {
+    throw new Error("Informe uma consulta SQL.");
+  }
+
+  const withoutComments = query
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/--.*$/gm, " ")
+    .trim();
+  const statement = withoutComments.replace(/;\s*$/, "").trim();
+  if (!/^(SELECT|WITH)\b/i.test(statement) || statement.includes(";")) {
+    throw new Error("A API aceita somente uma consulta SELECT.");
+  }
 }
 
-async function insertTableUsers() {
-  await connection.query(
-    "INSERT INTO users (name, email) VALUES\
-    ('Alice Smith', 'alice.smith@example.com'),\
-    ('Bob Johnson', 'bob.johnson@example.com'),\
-    ('Carol Williams', 'carol.williams@example.com'),\
-    ('David Brown', 'david.brown@example.com'),\
-    ('Eve Davis', 'eve.davis@example.com'),\
-    ('Frank Miller', 'frank.miller@example.com'),\
-    ('Grace Wilson', 'grace.wilson@example.com'),\
-    ('Hank Moore', 'hank.moore@example.com'),\
-    ('Ivy Taylor', 'ivy.taylor@example.com'),\
-    ('Jack Anderson', 'jack.anderson@example.com'),\
-    ('Kim Harris', 'kim.harris@example.com'),\
-    ('Leo Martin', 'leo.martin@example.com'),\
-    ('Mia Clark', 'mia.clark@example.com'),\
-    ('Noah Lewis', 'noah.lewis@example.com'),\
-    ('Olivia Hall', 'olivia.hall@example.com'),\
-    ('Paul Young', 'paul.young@example.com'),\
-    ('Quinn King', 'quinn.king@example.com'),\
-    ('Ruby Wright', 'ruby.wright@example.com'),\
-    ('Sam Scott', 'sam.scott@example.com'),\
-    ('Tina Green', 'tina.green@example.com');",
-    {
-      type: connection.QueryTypes.INSERT,
-    },
+function rowsFromResult(database, query) {
+  assertReadOnlySelect(query);
+  const resultSets = database.exec(query);
+  if (resultSets.length === 0) return [];
+
+  const { columns, values } = resultSets[0];
+  return values.map((row) =>
+    Object.fromEntries(columns.map((column, index) => [column, row[index]])),
   );
 }
 
 async function queryTable(query) {
-  return await connection.query(query, {
-    type: connection.QueryTypes.SELECT,
-  });
+  return rowsFromResult(await databaseReady, query);
 }
 
-export { createTableUsers, insertTableUsers, queryTable };
+async function queryCaseDatabase(databaseName, query) {
+  const database = await createCaseDatabase(databaseName);
+  try {
+    return rowsFromResult(database, query);
+  } finally {
+    database.close();
+  }
+}
+
+export { queryCaseDatabase, queryTable };

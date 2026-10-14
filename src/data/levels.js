@@ -12,7 +12,7 @@ const level1 = {
     descricao:
       "Imagens de segurança mostram que havia 2 testemunhas. A primeira testemunha mora na última casa na Avenida Carlos Gomes em Porto Alegre. A segunda testemunha, chamada Estefane, mora em algum lugar na Rua Augusta em São Paulo.",
   },
-  helps: [
+  hints: [
     {
       title: "Quais tabelas devo usar na consulta?",
       tip: "relatorios_criminais"
@@ -41,7 +41,7 @@ const level2 = {
     id: "6843",
     nome: "João Victor",
   },
-  helps: [
+  hints: [
     {
       title: "Quais tabelas devo usar na consulta?",
       tip: "pessoas"
@@ -70,7 +70,7 @@ const level3 = {
     id: "5098",
     nome: "Estefane Ribeiro",
   },
-  helps: [
+  hints: [
     {
       title: "Quais tabelas devo usar na consulta?",
       tip: "pessoas"
@@ -99,7 +99,7 @@ const level4 = {
     transcricao:
       "Ouvi um tiro e então vi um homem correndo para fora. Ele tinha uma sacola escrito 'Fitness 360'. O número de membro na sacola começava com '6J5'. Somente membros Ouro têm essas sacolas. O homem entrou em um carro com uma placa que incluía '3J45'.",
   },
-  helps: [
+  hints: [
     {
       title: "Quais tabelas devo usar na consulta?",
       tip: "entrevistas, pessoas"
@@ -128,7 +128,7 @@ const level5 = {
     transcricao:
       "Eu vi o assassinato acontecer e reconheci o assassino da minha academia quando estava malhando na semana passada, dia 17 de setembro.",
   },
-  helps: [
+  hints: [
     {
       title: "Quais tabelas devo usar na consulta?",
       tip: "entrevistas, pessoas"
@@ -158,7 +158,7 @@ const level6 = {
     id: "7507",
     nome: "Gabriel Braga",
   },
-  helps: [
+  hints: [
     {
       title: "Quais tabelas devo usar na consulta?",
       tip: "pessoas, carteiras_motorista, registros_academias"
@@ -188,7 +188,7 @@ const level7 = {
     transcricao:
       "Fui contratado por uma mulher com muito dinheiro. Não sei o nome dela, mas sei que ela tem cerca de 170 ou 180 centímetros. Ela tem cabelo loiro e dirige um Hyundai Creta. Sei que ela foi a Conferência de Inteligência Artificial 3 vezes em agosto de 2015.",
   },
-  helps: [
+  hints: [
     {
       title: "Quais tabelas devo usar na consulta?",
       tip: "entrevistas, pessoas"
@@ -219,7 +219,7 @@ const level8 = {
     nome: "Nazaré Tedesco",
     id: "6009",
   },
-  helps: [
+  hints: [
     {
       title: "Quais tabelas devo usar na consulta?",
       tip: "pessoas, carteiras_motorista, registros_eventos"
