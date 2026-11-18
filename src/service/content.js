@@ -50,16 +50,11 @@ export function getLevel(id) {
 }
 
 export function checkAnswers(level, inputs) {
-  if (!inputs || typeof inputs !== "object" || Array.isArray(inputs)) {
-    return false;
-  }
+  const expected = Object.values(level?.template ?? {});
+  if (!expected.length || !Array.isArray(inputs) || inputs.length !== expected.length) return false;
 
-  const expected = Object.entries(level.template);
-  return expected.every(([key, answer]) => {
-    const input = inputs[key];
-    return (
-      typeof input === "string" &&
-      input.trim().toLocaleLowerCase() === String(answer).trim().toLocaleLowerCase()
-    );
-  });
+  return expected.every((value, index) =>
+    typeof inputs[index] === "string" &&
+    inputs[index].trim().toLocaleLowerCase() === String(value ?? "").trim().toLocaleLowerCase(),
+  );
 }

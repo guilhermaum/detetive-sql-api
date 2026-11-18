@@ -24,7 +24,7 @@ const originalCase = {
   name: "Caso 1",
   description: "O caso original do Detetive SQL.",
   difficulty: "medium",
-  database_name: "case-1.db",
+  database_file_path: "cases/case-1.db",
   levels: caseLevels,
 };
 

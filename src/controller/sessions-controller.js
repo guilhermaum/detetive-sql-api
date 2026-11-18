@@ -2,12 +2,17 @@ import { Router } from "express";
 
 import {
   ApiError,
+  checkLevelAnswers,
   completeGameSession,
   executeLevelQuery,
+  findResumableGameSession,
   getGameSession,
+  listGameSessions,
   listSessionQueries,
   getSessionProgress,
+  listSessionRanking,
   startGameSession,
+  saveCurrentLevelScore,
   useLevelHint,
 } from "../service/game-sessions.js";
 
@@ -27,9 +32,36 @@ sessionsController.post("/game-sessions", async (req, res) => {
   }
 });
 
-sessionsController.get("/game-sessions/:sessionId", async (req, res) => {
+sessionsController.get("/game-sessions", async (_req, res) => {
   try {
-    const session = await getGameSession(req.params.sessionId);
+    return res.status(200).json(await listGameSessions());
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+sessionsController.get("/game-sessions/resume", async (req, res) => {
+  try {
+    return res.status(200).json(await findResumableGameSession({
+      card_id: req.query.card_id,
+      player_id: req.query.player_id ?? req.query.user_id,
+    }));
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+sessionsController.get("/game-sessions/card/:cardId/ranking", async (req, res) => {
+  try {
+    return res.status(200).json(await listSessionRanking(req.params.cardId, req.query.case_id));
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+sessionsController.get("/game-sessions/:gameSessionId", async (req, res) => {
+  try {
+    const session = await getGameSession(req.params.gameSessionId);
     if (!session) return res.status(404).json({ message: "Sessão não encontrada." });
     return res.status(200).json(session);
   } catch (error) {
@@ -37,42 +69,72 @@ sessionsController.get("/game-sessions/:sessionId", async (req, res) => {
   }
 });
 
-sessionsController.get("/game-sessions/:sessionId/progress", async (req, res) => {
+sessionsController.get("/game-sessions/:gameSessionId/progress", async (req, res) => {
   try {
-    return res.status(200).json(await getSessionProgress(req.params.sessionId));
+    return res.status(200).json(await getSessionProgress(req.params.gameSessionId));
   } catch (error) {
     return sendError(res, error);
   }
 });
 
-sessionsController.get("/game-sessions/:sessionId/sql-queries", async (req, res) => {
+sessionsController.get("/game-sessions/:gameSessionId/sql-queries", async (req, res) => {
   try {
-    return res.status(200).json(await listSessionQueries(req.params.sessionId));
+    return res.status(200).json(await listSessionQueries(req.params.gameSessionId));
   } catch (error) {
     return sendError(res, error);
   }
 });
 
-sessionsController.post("/game-sessions/:sessionId/levels/:levelId/query", async (req, res) => {
+sessionsController.post("/game-sessions/:gameSessionId/levels/:levelId/query", async (req, res) => {
   try {
-    const outcome = await executeLevelQuery(req.params.sessionId, req.params.levelId, req.body?.query);
+    const outcome = await executeLevelQuery(req.params.gameSessionId, req.params.levelId, req.body?.query);
     return res.status(outcome.error ? 400 : 200).json(outcome);
   } catch (error) {
     return sendError(res, error);
   }
 });
 
-sessionsController.post("/game-sessions/:sessionId/levels/:levelId/hints/:hintId/use", async (req, res) => {
+sessionsController.post("/game-sessions/:gameSessionId/levels/:levelId/check", async (req, res) => {
   try {
-    return res.status(200).json(await useLevelHint(req.params.sessionId, req.params.levelId, req.params.hintId));
+    return res.status(200).json(await checkLevelAnswers(
+      req.params.gameSessionId,
+      req.params.levelId,
+      req.body?.answers,
+      req.body?.score,
+    ));
   } catch (error) {
     return sendError(res, error);
   }
 });
 
-sessionsController.post("/game-sessions/:sessionId/complete", async (req, res) => {
+sessionsController.post("/game-sessions/:gameSessionId/levels/:levelId/score", async (req, res) => {
   try {
-    return res.status(200).json(await completeGameSession(req.params.sessionId));
+    return res.status(200).json(await saveCurrentLevelScore(
+      req.params.gameSessionId,
+      req.params.levelId,
+      req.body?.score,
+    ));
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+sessionsController.post("/game-sessions/:gameSessionId/levels/:levelId/hints/:hintId/use", async (req, res) => {
+  try {
+    return res.status(200).json(await useLevelHint(
+      req.params.gameSessionId,
+      req.params.levelId,
+      req.params.hintId,
+      req.body?.score,
+    ));
+  } catch (error) {
+    return sendError(res, error);
+  }
+});
+
+sessionsController.post("/game-sessions/:gameSessionId/complete", async (req, res) => {
+  try {
+    return res.status(200).json(await completeGameSession(req.params.gameSessionId));
   } catch (error) {
     return sendError(res, error);
   }

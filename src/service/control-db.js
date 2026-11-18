@@ -1,11 +1,11 @@
 import initSqlJs from "sql.js";
-import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import seedCases from "../data/cases.js";
+import { deleteCaseDatabaseFile, readCaseDatabaseImage as readCaseImageFile, saveCaseImageFile, saveCaseSqlFile } from "../sql/config.js";
 
 const controlDatabasePath = process.env.SQL_DETECTIVE_CONTROL_DB
   ? resolve(process.env.SQL_DETECTIVE_CONTROL_DB)
@@ -21,8 +21,18 @@ const schema = `
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     difficulty TEXT NOT NULL DEFAULT 'medium',
-    database_name TEXT NOT NULL UNIQUE,
+    database_file_path TEXT NOT NULL UNIQUE,
+    database_image_path TEXT,
     created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS cards (
+    card_id TEXT PRIMARY KEY,
+    case_distribution TEXT NOT NULL DEFAULT 'aleatorio',
+    difficulty TEXT NOT NULL DEFAULT 'medium',
+    case_id INTEGER REFERENCES cases(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS helps (
@@ -53,7 +63,9 @@ const schema = `
   CREATE TABLE IF NOT EXISTS game_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL UNIQUE,
+    card_id TEXT NOT NULL,
     player_id TEXT NOT NULL,
+    player_name TEXT,
     case_id INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'in_progress',
     current_level INTEGER REFERENCES levels(id) ON DELETE SET NULL,
@@ -64,18 +76,18 @@ const schema = `
 
   CREATE TABLE IF NOT EXISTS player_progress (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL REFERENCES game_sessions(session_id) ON DELETE CASCADE,
+    game_session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
     level_id INTEGER NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'in_progress',
     score INTEGER NOT NULL DEFAULT 0,
     started_at TEXT NOT NULL,
     finished_at TEXT,
-    UNIQUE(session_id, level_id)
+    UNIQUE(game_session_id, level_id)
   );
 
   CREATE TABLE IF NOT EXISTS sql_executions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL REFERENCES game_sessions(session_id) ON DELETE CASCADE,
+    game_session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
     level_id INTEGER NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
     query TEXT NOT NULL,
     success INTEGER NOT NULL,
@@ -84,9 +96,19 @@ const schema = `
     executed_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS querys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+    level_id INTEGER NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
+    query TEXT NOT NULL,
+    result TEXT NOT NULL,
+    error TEXT,
+    executed_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS hint_usage (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL REFERENCES game_sessions(session_id) ON DELETE CASCADE,
+    game_session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
     level_id INTEGER NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
     hint_id INTEGER NOT NULL,
     used_at TEXT NOT NULL
@@ -191,24 +213,35 @@ function seedDatabase(database) {
   const existing = readOne(database, "SELECT COUNT(*) AS count FROM cases");
   if (existing?.count) return;
 
+  const legacyDatabaseName = readMany(database, "PRAGMA table_info(cases)")
+    .some((column) => column.name === "database_name" && Number(column.notnull) === 1);
   const timestamp = new Date().toISOString();
   database.exec("BEGIN");
   try {
     seedCases.forEach((seedCase, index) => {
       const id = Number.isInteger(seedCase.id) ? seedCase.id : index + 1;
-      execute(
-        database,
-        `INSERT INTO cases(id, name, description, difficulty, database_name, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          seedCase.name ?? seedCase.nome,
-          seedCase.description ?? "",
-          seedCase.difficulty ?? "medium",
-          seedCase.database_name ?? `case-${id}.db`,
-          seedCase.created_at ?? timestamp,
-        ],
-      );
+      const databaseFilePath = seedCase.database_file_path ?? `cases/case-${id}.db`;
+      const values = [
+        id,
+        seedCase.name ?? seedCase.nome,
+        seedCase.description ?? "",
+        seedCase.difficulty ?? "medium",
+      ];
+      if (legacyDatabaseName) {
+        execute(
+          database,
+          `INSERT INTO cases(id, name, description, difficulty, database_name, database_file_path, database_image_path, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`,
+          [...values, basename(databaseFilePath), databaseFilePath, seedCase.created_at ?? timestamp],
+        );
+      } else {
+        execute(
+          database,
+          `INSERT INTO cases(id, name, description, difficulty, database_file_path, database_image_path, created_at)
+           VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+          [...values, databaseFilePath, seedCase.created_at ?? timestamp],
+        );
+      }
       seedCase.levels.forEach((level) => insertLevel(database, id, level));
     });
     database.exec("COMMIT");
@@ -233,6 +266,168 @@ function migrateLevelCreatedAt(database) {
   `);
 }
 
+function migrateCaseDatabaseFilePath(database) {
+  const columns = readMany(database, "PRAGMA table_info(cases)");
+  if (columns.some((column) => column.name === "database_file_path")) return;
+
+  database.run("ALTER TABLE cases ADD COLUMN database_file_path TEXT");
+  const oldColumn = columns.some((column) => column.name === "database_name") ? "database_name" : "NULL";
+  const rows = readMany(database, `SELECT id, ${oldColumn} AS old_path FROM cases`);
+  rows.forEach((row) => {
+    const oldName = typeof row.old_path === "string" ? row.old_path.replace(/\\/g, "/") : "";
+    const safeName = basename(oldName) === oldName && /^[a-z0-9_.-]+\.db$/i.test(oldName)
+      ? oldName
+      : `case-${row.id}.db`;
+    database.run("UPDATE cases SET database_file_path = ? WHERE id = ?", [`cases/${safeName}`, row.id]);
+  });
+  database.run("CREATE UNIQUE INDEX IF NOT EXISTS cases_database_file_path_unique ON cases(database_file_path)");
+}
+
+function migrateCaseDatabaseImagePath(database) {
+  const columns = readMany(database, "PRAGMA table_info(cases)");
+  if (columns.some((column) => column.name === "database_image_path")) return;
+  database.run("ALTER TABLE cases ADD COLUMN database_image_path TEXT");
+}
+
+function migrateGameSessionParticipantFields(database) {
+  const columns = readMany(database, "PRAGMA table_info(game_sessions)");
+  if (!columns.some((column) => column.name === "card_id")) {
+    database.run("ALTER TABLE game_sessions ADD COLUMN card_id TEXT");
+  }
+  if (!columns.some((column) => column.name === "player_name")) {
+    database.run("ALTER TABLE game_sessions ADD COLUMN player_name TEXT");
+  }
+}
+
+function migrateObsoleteGameSessionLineage(database) {
+  const columns = readMany(database, "PRAGMA table_info(game_sessions)");
+  const obsoleteColumns = ["continuation_id", "session_number", "parent_session_id"];
+  if (!columns.some((column) => obsoleteColumns.includes(column.name))) return;
+
+  database.exec("PRAGMA foreign_keys = OFF");
+  database.exec("PRAGMA legacy_alter_table = ON");
+  database.exec("BEGIN");
+  try {
+    database.run("ALTER TABLE game_sessions RENAME TO game_sessions_legacy");
+    database.run(`
+      CREATE TABLE game_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL UNIQUE,
+        card_id TEXT NOT NULL,
+        player_id TEXT NOT NULL,
+        player_name TEXT,
+        case_id INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'in_progress',
+        current_level INTEGER REFERENCES levels(id) ON DELETE SET NULL,
+        score INTEGER NOT NULL DEFAULT 0,
+        started_at TEXT NOT NULL,
+        finished_at TEXT
+      )
+    `);
+    database.run(
+      `INSERT INTO game_sessions(id, session_id, card_id, player_id, player_name, case_id,
+         status, current_level, score, started_at, finished_at)
+       SELECT id, session_id, COALESCE(card_id, ''), player_id, player_name, case_id,
+         CASE WHEN status = 'continued' THEN 'abandoned' ELSE status END,
+         current_level, score, started_at, finished_at
+       FROM game_sessions_legacy`,
+    );
+    database.run("DROP TABLE game_sessions_legacy");
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  } finally {
+    database.exec("PRAGMA legacy_alter_table = OFF");
+    database.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
+function migrateGameSessionReferences(database) {
+  const migrations = {
+    player_progress: {
+      create: `CREATE TABLE player_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+        level_id INTEGER NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'in_progress',
+        score INTEGER NOT NULL DEFAULT 0,
+        started_at TEXT NOT NULL,
+        finished_at TEXT,
+        UNIQUE(game_session_id, level_id)
+      )`,
+      columns: "id, game_session_id, level_id, status, score, started_at, finished_at",
+      select: "legacy.id, game_sessions.id, legacy.level_id, legacy.status, legacy.score, legacy.started_at, legacy.finished_at",
+    },
+    sql_executions: {
+      create: `CREATE TABLE sql_executions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+        level_id INTEGER NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
+        query TEXT NOT NULL,
+        success INTEGER NOT NULL,
+        result TEXT NOT NULL,
+        error TEXT,
+        executed_at TEXT NOT NULL
+      )`,
+      columns: "id, game_session_id, level_id, query, success, result, error, executed_at",
+      select: "legacy.id, game_sessions.id, legacy.level_id, legacy.query, legacy.success, legacy.result, legacy.error, legacy.executed_at",
+    },
+    querys: {
+      create: `CREATE TABLE querys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+        level_id INTEGER NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
+        query TEXT NOT NULL,
+        result TEXT NOT NULL,
+        error TEXT,
+        executed_at TEXT NOT NULL
+      )`,
+      columns: "id, game_session_id, level_id, query, result, error, executed_at",
+      select: "legacy.id, game_sessions.id, legacy.level_id, legacy.query, legacy.result, legacy.error, legacy.executed_at",
+    },
+    hint_usage: {
+      create: `CREATE TABLE hint_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+        level_id INTEGER NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
+        hint_id INTEGER NOT NULL,
+        used_at TEXT NOT NULL
+      )`,
+      columns: "id, game_session_id, level_id, hint_id, used_at",
+      select: "legacy.id, game_sessions.id, legacy.level_id, legacy.hint_id, legacy.used_at",
+    },
+  };
+
+  for (const [tableName, migration] of Object.entries(migrations)) {
+    const columns = readMany(database, `PRAGMA table_info(${tableName})`);
+    if (columns.some((column) => column.name === "game_session_id")) continue;
+
+    const legacyTable = `${tableName}_legacy`;
+    database.exec("BEGIN");
+    try {
+      database.run(`ALTER TABLE ${tableName} RENAME TO ${legacyTable}`);
+      database.run(migration.create);
+      database.run(
+        `INSERT INTO ${tableName}(${migration.columns})
+         SELECT ${migration.select}
+         FROM ${legacyTable} AS legacy
+         JOIN game_sessions ON game_sessions.session_id = legacy.session_id`,
+      );
+      database.run(`DROP TABLE ${legacyTable}`);
+      database.exec("COMMIT");
+    } catch (error) {
+      database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+}
+
+function migrateGameScoreCeiling(database) {
+  database.run("UPDATE game_sessions SET score = MIN(MAX(score, 0), 100)");
+  database.run("UPDATE player_progress SET score = MIN(MAX(score, 0), 100)");
+}
+
 async function initialize() {
   await mkdir(dirname(controlDatabasePath), { recursive: true });
   const SQL = await initSqlJs({
@@ -248,7 +443,13 @@ async function initialize() {
   }
 
   database.exec(schema);
+  migrateCaseDatabaseFilePath(database);
+  migrateCaseDatabaseImagePath(database);
+  migrateGameSessionParticipantFields(database);
+  migrateObsoleteGameSessionLineage(database);
   migrateLevelCreatedAt(database);
+  migrateGameSessionReferences(database);
+  migrateGameScoreCeiling(database);
   seedDatabase(database);
   const initialBytes = Buffer.from(database.export());
   await writeFile(controlDatabasePath, initialBytes);
@@ -297,7 +498,9 @@ function toCase(row) {
     name: row.name,
     description: row.description,
     difficulty: row.difficulty,
-    database_name: row.database_name,
+    database_file_path: row.database_file_path,
+    database_image_path: row.database_image_path ?? null,
+    database_image_url: row.database_image_path ? `/cases/${Number(row.id)}/database-image` : null,
     created_at: row.created_at,
     level_count: Number(row.level_count ?? 0),
   };
@@ -319,19 +522,39 @@ export async function getCase(id) {
 }
 
 export async function createCase(input) {
-  return withTransaction(({ one, run }) => {
-    const name = input.name ?? input.nome;
-    const inserted = run(
-      `INSERT INTO cases(name, description, difficulty, database_name, created_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      [String(name), String(input.description ?? ""), String(input.difficulty ?? "medium"), `pending-${randomUUID()}.db`, new Date().toISOString()],
-    );
-    const databaseName = String(input.database_name ?? `case-${inserted.id}.db`);
-    run("UPDATE cases SET database_name = ? WHERE id = ?", [databaseName, inserted.id]);
-    if (Array.isArray(input.levels)) input.levels.forEach((level) => insertLevelWith(run, one, inserted.id, level));
-    const row = one(`${caseSelect} WHERE c.id = ?`, [inserted.id]);
-    return toCase(row);
-  });
+  const databaseFilePath = await saveCaseSqlFile(input.database_file);
+  let databaseImagePath = null;
+  try {
+    if (input.database_image) {
+      databaseImagePath = await saveCaseImageFile(input.database_image, input.database_image_filename);
+    }
+    return await withTransaction(({ one, many, run }) => {
+      const name = input.name ?? input.nome;
+      const columns = many("PRAGMA table_info(cases)");
+      const legacyDatabaseName = columns.find((column) => column.name === "database_name" && Number(column.notnull) === 1);
+      const createdAt = new Date().toISOString();
+      const inserted = legacyDatabaseName
+        ? run(
+          `INSERT INTO cases(name, description, difficulty, database_name, database_file_path, database_image_path, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [String(name), String(input.description ?? ""), String(input.difficulty ?? "medium"), basename(databaseFilePath), databaseFilePath, databaseImagePath, createdAt],
+        )
+        : run(
+          `INSERT INTO cases(name, description, difficulty, database_file_path, database_image_path, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [String(name), String(input.description ?? ""), String(input.difficulty ?? "medium"), databaseFilePath, databaseImagePath, createdAt],
+        );
+      if (Array.isArray(input.levels)) input.levels.forEach((level) => insertLevelWith(run, one, inserted.id, level));
+      const row = one(`${caseSelect} WHERE c.id = ?`, [inserted.id]);
+      return toCase(row);
+    });
+  } catch (error) {
+    await Promise.allSettled([
+      deleteCaseDatabaseFile(databaseFilePath),
+      ...(databaseImagePath ? [deleteCaseDatabaseFile(databaseImagePath)] : []),
+    ]);
+    throw error;
+  }
 }
 
 function insertLevelWith(run, one, caseId, input = {}) {
@@ -355,20 +578,79 @@ function insertLevelWith(run, one, caseId, input = {}) {
 }
 
 export async function updateCase(id, input) {
-  return withTransaction(({ one, run }) => {
-    const current = one("SELECT * FROM cases WHERE id = ?", [Number(id)]);
-    if (!current) return null;
-    const name = input.name ?? input.nome ?? current.name;
-    run(
-      `UPDATE cases SET name = ?, description = ?, difficulty = ?, database_name = ? WHERE id = ?`,
-      [String(name), String(input.description ?? current.description), String(input.difficulty ?? current.difficulty), String(input.database_name ?? current.database_name), Number(id)],
-    );
-    return toCase(one(`${caseSelect} WHERE c.id = ?`, [Number(id)]));
-  });
+  let newDatabaseFilePath = null;
+  let newDatabaseImagePath = null;
+  try {
+    if (input.database_file !== undefined) newDatabaseFilePath = await saveCaseSqlFile(input.database_file);
+    if (input.database_image !== undefined) {
+      newDatabaseImagePath = await saveCaseImageFile(input.database_image, input.database_image_filename);
+    }
+
+    const result = await withTransaction(({ one, many, run }) => {
+      const current = one("SELECT * FROM cases WHERE id = ?", [Number(id)]);
+      if (!current) return null;
+      const name = input.name ?? input.nome ?? current.name;
+      const databaseFilePath = newDatabaseFilePath ?? current.database_file_path;
+      const databaseImagePath = newDatabaseImagePath ?? current.database_image_path ?? null;
+      const hasLegacyDatabaseName = many("PRAGMA table_info(cases)")
+        .some((column) => column.name === "database_name" && Number(column.notnull) === 1);
+      const updateSql = hasLegacyDatabaseName
+        ? `UPDATE cases SET name = ?, description = ?, difficulty = ?, database_name = ?, database_file_path = ?, database_image_path = ? WHERE id = ?`
+        : `UPDATE cases SET name = ?, description = ?, difficulty = ?, database_file_path = ?, database_image_path = ? WHERE id = ?`;
+      const values = hasLegacyDatabaseName
+        ? [String(name), String(input.description ?? current.description), String(input.difficulty ?? current.difficulty), basename(databaseFilePath), databaseFilePath, databaseImagePath, Number(id)]
+        : [String(name), String(input.description ?? current.description), String(input.difficulty ?? current.difficulty), databaseFilePath, databaseImagePath, Number(id)];
+      run(updateSql, values);
+      return {
+        item: toCase(one(`${caseSelect} WHERE c.id = ?`, [Number(id)])),
+        oldDatabaseFilePath: current.database_file_path,
+        oldDatabaseImagePath: current.database_image_path,
+      };
+    });
+
+    if (!result) {
+      await Promise.allSettled([
+        ...(newDatabaseFilePath ? [deleteCaseDatabaseFile(newDatabaseFilePath)] : []),
+        ...(newDatabaseImagePath ? [deleteCaseDatabaseFile(newDatabaseImagePath)] : []),
+      ]);
+      return null;
+    }
+
+    const obsoleteFiles = [];
+    if (newDatabaseFilePath && result.oldDatabaseFilePath !== newDatabaseFilePath) {
+      obsoleteFiles.push(deleteCaseDatabaseFile(result.oldDatabaseFilePath));
+    }
+    if (newDatabaseImagePath && result.oldDatabaseImagePath && result.oldDatabaseImagePath !== newDatabaseImagePath) {
+      obsoleteFiles.push(deleteCaseDatabaseFile(result.oldDatabaseImagePath));
+    }
+    await Promise.all(obsoleteFiles);
+    return result.item;
+  } catch (error) {
+    await Promise.allSettled([
+      ...(newDatabaseFilePath ? [deleteCaseDatabaseFile(newDatabaseFilePath)] : []),
+      ...(newDatabaseImagePath ? [deleteCaseDatabaseFile(newDatabaseImagePath)] : []),
+    ]);
+    throw error;
+  }
+}
+
+export async function getCaseImage(caseId) {
+  const row = await readOneRow("SELECT database_image_path FROM cases WHERE id = ?", [Number(caseId)]);
+  if (!row?.database_image_path) return null;
+  return readCaseImageFile(row.database_image_path);
 }
 
 export async function deleteCase(id) {
-  return withTransaction(({ run }) => run("DELETE FROM cases WHERE id = ?", [Number(id)]).changes > 0);
+  const current = await readOneRow("SELECT database_file_path, database_image_path FROM cases WHERE id = ?", [Number(id)]);
+  if (!current) return false;
+  const removed = await withTransaction(({ run }) => run("DELETE FROM cases WHERE id = ?", [Number(id)]).changes > 0);
+  if (removed) {
+    await Promise.all([
+      deleteCaseDatabaseFile(current.database_file_path),
+      ...(current.database_image_path ? [deleteCaseDatabaseFile(current.database_image_path)] : []),
+    ]);
+  }
+  return removed;
 }
 
 function textValue(value, fallback = "") {
@@ -469,8 +751,9 @@ export function toSession(row) {
   if (!row) return null;
   return {
     id: Number(row.id),
-    external_session_id: row.session_id,
+    card_id: row.card_id ?? null,
     player_id: row.player_id,
+    player_name: row.player_name ?? null,
     case_id: Number(row.case_id),
     status: row.status,
     current_level_id: row.current_level == null ? null : Number(row.current_level),

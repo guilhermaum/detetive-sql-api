@@ -22,10 +22,17 @@ levelController.get("/levels/:id", async (req, res) => {
   return res.status(200).json(level);
 });
 
-levelController.post("/levels/:id/check", (req, res) => {
-  const level = getLevel(req.params.id);
-  if (!level) return res.status(404).json({ message: "Fase não encontrada." });
-  return res.status(200).json({ check: checkAnswers(level, req.body?.inputs) });
+levelController.post("/levels/:id/check", async (req, res) => {
+  try {
+    const level = /^\d+$/.test(req.params.id)
+      ? await getStoredLevel(req.params.id)
+      : getLevel(req.params.id);
+    if (!level) return res.status(404).json({ message: "Fase não encontrada." });
+    return res.status(200).json({ check: checkAnswers(level, req.body?.answers) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Erro interno da API." });
+  }
 });
 
 export default levelController;
