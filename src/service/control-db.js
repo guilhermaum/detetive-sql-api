@@ -28,11 +28,38 @@ const schema = `
 
   CREATE TABLE IF NOT EXISTS cards (
     card_id TEXT PRIMARY KEY,
+    script_id TEXT,
+    session_id TEXT,
     case_distribution TEXT NOT NULL DEFAULT 'aleatorio',
     difficulty TEXT NOT NULL DEFAULT 'medium',
     case_id INTEGER REFERENCES cases(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS script_case_assignments (
+    script_id TEXT NOT NULL,
+    card_id TEXT NOT NULL REFERENCES cards(card_id) ON DELETE CASCADE,
+    difficulty TEXT NOT NULL,
+    case_index INTEGER NOT NULL DEFAULT 0,
+    case_id INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(script_id, card_id, difficulty, case_index),
+    UNIQUE(script_id, case_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS script_case_overrides (
+    script_id TEXT NOT NULL,
+    card_id TEXT NOT NULL REFERENCES cards(card_id) ON DELETE CASCADE,
+    difficulty TEXT NOT NULL,
+    case_index INTEGER NOT NULL DEFAULT 0,
+    player_id TEXT NOT NULL,
+    base_case_id INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    case_id INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    session_id TEXT,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(script_id, card_id, difficulty, case_index, player_id),
+    UNIQUE(script_id, player_id, case_id)
   );
 
   CREATE TABLE IF NOT EXISTS helps (
@@ -299,6 +326,16 @@ function migrateGameSessionParticipantFields(database) {
   }
 }
 
+function migrateCardContextFields(database) {
+  const columns = readMany(database, "PRAGMA table_info(cards)");
+  if (!columns.some((column) => column.name === "script_id")) {
+    database.run("ALTER TABLE cards ADD COLUMN script_id TEXT");
+  }
+  if (!columns.some((column) => column.name === "session_id")) {
+    database.run("ALTER TABLE cards ADD COLUMN session_id TEXT");
+  }
+}
+
 function migrateObsoleteGameSessionLineage(database) {
   const columns = readMany(database, "PRAGMA table_info(game_sessions)");
   const obsoleteColumns = ["continuation_id", "session_number", "parent_session_id"];
@@ -443,6 +480,7 @@ async function initialize() {
   }
 
   database.exec(schema);
+  migrateCardContextFields(database);
   migrateCaseDatabaseFilePath(database);
   migrateCaseDatabaseImagePath(database);
   migrateGameSessionParticipantFields(database);

@@ -51,6 +51,8 @@ export async function startGameSession(input = {}) {
   const cardId = String(input.card_id ?? input.cardId ?? "").trim();
   const playerId = String(input.player_id ?? input.playerId ?? `test-player-${randomUUID()}`).trim();
   const playerName = String(input.player_name ?? input.playerName ?? playerId).trim();
+  const scriptId = String(input.script_id ?? input.scriptId ?? cardId).trim() || cardId;
+  const fctoolSessionId = String(input.session_id ?? input.sessionId ?? "").trim();
   if (!cardId) throw new ApiError("O campo 'card_id' é obrigatório.");
   if (!playerId) throw new ApiError("O campo 'player_id' não pode ser vazio.");
 
@@ -58,6 +60,21 @@ export async function startGameSession(input = {}) {
   await withTransaction(({ one, run }) => {
     const firstLevel = one("SELECT id FROM levels WHERE case_id = ? ORDER BY number LIMIT 1", [caseId]);
     const startedAt = currentTime();
+    const card = one("SELECT card_id FROM cards WHERE card_id = ?", [cardId]);
+    if (card) {
+      run(
+        "UPDATE cards SET script_id = ?, session_id = ?, updated_at = ? WHERE card_id = ?",
+        [scriptId, fctoolSessionId || null, startedAt, cardId],
+      );
+    } else {
+      run(
+        `INSERT INTO cards(card_id, script_id, session_id, case_distribution, difficulty,
+           case_id, created_at, updated_at)
+         VALUES (?, ?, ?, 'aleatorio', ?, NULL, ?, ?)`,
+        [cardId, scriptId, fctoolSessionId || null,
+          String(caseItem.difficulty ?? "medium"), startedAt, startedAt],
+      );
+    }
     const inserted = run(
       `INSERT INTO game_sessions(session_id, card_id, player_id, player_name, case_id,
          status, current_level, score, started_at)
@@ -128,43 +145,248 @@ function normalizeCaseDifficulty(value) {
 export async function selectCaseForPlayer(input = {}) {
   const cardId = String(input.card_id ?? input.cardId ?? "").trim();
   const playerId = String(input.player_id ?? input.playerId ?? "").trim();
+  const scriptId = String(input.script_id ?? input.scriptId ?? "").trim();
+  const fctoolSessionId = String(input.session_id ?? input.sessionId ?? "").trim();
+  const hasScriptContext = Boolean(scriptId);
   const difficulty = normalizeCaseDifficulty(input.difficulty);
   const caseDistribution = String(input.case_distribution ?? input.caseDistribution ?? "aleatorio").trim().toLowerCase();
+  const selectionIndexValue = input.selection_index ?? input.selectionIndex;
+  const selectionIndex = selectionIndexValue === undefined
+    ? null
+    : Number(selectionIndexValue);
+  const allowReplaySameCase =
+    input.allow_replay_same_case === true ||
+    input.allow_replay_same_case === "sim" ||
+    input.allow_replay_same_case === "true";
   if (!cardId) throw new ApiError("O campo card_id e obrigatorio.");
   if (!playerId) throw new ApiError("O campo player_id e obrigatorio.");
   if (caseDistribution !== "aleatorio" && caseDistribution !== "mesmo") {
     throw new ApiError("O campo case_distribution deve ser aleatorio ou mesmo.");
   }
+  if (selectionIndex !== null && (!Number.isInteger(selectionIndex) || selectionIndex < 0)) {
+    throw new ApiError("O campo selection_index deve ser um inteiro maior ou igual a zero.");
+  }
 
-  let selectedCaseId;
+  let selectionResult;
   await withTransaction(({ one, many, run }) => {
     const now = currentTime();
     let card = one("SELECT * FROM cards WHERE card_id = ?", [cardId]);
 
     if (!card) {
       run(
-        `INSERT INTO cards(card_id, case_distribution, difficulty, case_id, created_at, updated_at)
-         VALUES (?, ?, ?, NULL, ?, ?)`,
-        [cardId, caseDistribution, difficulty, now, now],
+        `INSERT INTO cards(card_id, script_id, session_id, case_distribution,
+           difficulty, case_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
+        [cardId, hasScriptContext ? scriptId : null, fctoolSessionId || null,
+          caseDistribution, difficulty, now, now],
       );
       card = one("SELECT * FROM cards WHERE card_id = ?", [cardId]);
-    } else if (card.case_distribution !== caseDistribution || card.difficulty !== difficulty) {
+    } else {
+      const resetSelectedCase =
+        card.case_distribution !== caseDistribution ||
+        card.difficulty !== difficulty ||
+        (hasScriptContext && card.script_id !== scriptId);
       run(
-        `UPDATE cards SET case_distribution = ?, difficulty = ?, case_id = NULL, updated_at = ?
-         WHERE card_id = ?`,
-        [caseDistribution, difficulty, now, cardId],
+        `UPDATE cards SET script_id = ?, session_id = ?, case_distribution = ?,
+           difficulty = ?, case_id = ?, updated_at = ? WHERE card_id = ?`,
+        [hasScriptContext ? scriptId : card.script_id,
+          fctoolSessionId || card.session_id,
+          caseDistribution, difficulty, resetSelectedCase ? null : card.case_id,
+          now, cardId],
       );
       card = one("SELECT * FROM cards WHERE card_id = ?", [cardId]);
     }
 
     if (caseDistribution === "mesmo") {
+      if (hasScriptContext) {
+        const caseIndex = selectionIndex ?? 0;
+        let assignment = one(
+          `SELECT case_id FROM script_case_assignments
+           WHERE script_id = ? AND card_id = ? AND difficulty = ? AND case_index = ?`,
+          [scriptId, cardId, difficulty, caseIndex],
+        );
+
+        if (!assignment) {
+          const candidates = many(
+            `SELECT c.id,
+                    CASE WHEN EXISTS (
+                      SELECT 1 FROM game_sessions s
+                      JOIN cards used_card ON used_card.card_id = s.card_id
+                      WHERE used_card.script_id = ? AND s.case_id = c.id
+                    ) THEN 1 ELSE 0 END AS was_played_in_script
+             FROM cases c
+             WHERE lower(c.difficulty) = lower(?)
+               AND NOT EXISTS (
+                 SELECT 1 FROM script_case_assignments a
+                 WHERE a.script_id = ? AND a.case_id = c.id
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM script_case_overrides o
+                 WHERE o.script_id = ? AND o.case_id = c.id
+               )
+             ORDER BY c.id`,
+            [scriptId, difficulty, scriptId, scriptId],
+          );
+          if (candidates.length === 0) {
+            throw new ApiError("Nao ha casos exclusivos disponiveis para este roteiro e dificuldade.", 409);
+          }
+          const neverPlayed = candidates.filter(
+            (candidate) => Number(candidate.was_played_in_script) === 0,
+          );
+          const candidatePool = neverPlayed.length > 0 ? neverPlayed : candidates;
+          const baseCaseId = Number(
+            candidatePool[Math.floor(Math.random() * candidatePool.length)].id,
+          );
+          run(
+            `INSERT INTO script_case_assignments
+               (script_id, card_id, difficulty, case_index, case_id, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [scriptId, cardId, difficulty, caseIndex, baseCaseId, now],
+          );
+          assignment = { case_id: baseCaseId };
+        }
+
+        const sharedCaseId = Number(assignment.case_id);
+        run("UPDATE cards SET case_id = ?, updated_at = ? WHERE card_id = ?", [sharedCaseId, now, cardId]);
+
+        let selectedCaseId = sharedCaseId;
+        let fallbackReason = null;
+        if (!allowReplaySameCase) {
+          const priorPlay = one(
+            `SELECT s.card_id FROM game_sessions s
+             JOIN cards played_card ON played_card.card_id = s.card_id
+             WHERE played_card.script_id = ? AND s.player_id = ? AND s.case_id = ?
+             ORDER BY s.started_at LIMIT 1`,
+            [scriptId, playerId, sharedCaseId],
+          );
+
+          if (priorPlay) {
+            const existingOverride = one(
+              `SELECT case_id FROM script_case_overrides
+               WHERE script_id = ? AND card_id = ? AND difficulty = ?
+                 AND case_index = ? AND player_id = ?`,
+              [scriptId, cardId, difficulty, caseIndex, playerId],
+            );
+            const overrideWasPlayed = existingOverride
+              ? one(
+                  `SELECT 1 AS played FROM game_sessions s
+                   JOIN cards played_card ON played_card.card_id = s.card_id
+                   WHERE played_card.script_id = ? AND s.player_id = ? AND s.case_id = ?
+                   LIMIT 1`,
+                  [scriptId, playerId, existingOverride.case_id],
+                )
+              : null;
+            if (existingOverride && !overrideWasPlayed) {
+              selectedCaseId = Number(existingOverride.case_id);
+            } else {
+              const alternatives = many(
+                `SELECT c.id FROM cases c
+                 WHERE lower(c.difficulty) = lower(?)
+                   AND c.id <> ?
+                   AND NOT EXISTS (
+                     SELECT 1 FROM script_case_assignments a
+                     WHERE a.script_id = ? AND a.case_id = c.id
+                   )
+                   AND NOT EXISTS (
+                     SELECT 1 FROM script_case_overrides o
+                     WHERE o.script_id = ? AND o.player_id = ? AND o.case_id = c.id
+                   )
+                   AND NOT EXISTS (
+                     SELECT 1 FROM game_sessions s
+                     JOIN cards played_card ON played_card.card_id = s.card_id
+                     WHERE played_card.script_id = ? AND s.player_id = ? AND s.case_id = c.id
+                   )
+                 ORDER BY c.id`,
+                [difficulty, sharedCaseId, scriptId, scriptId, playerId, scriptId, playerId],
+              );
+              if (alternatives.length === 0) {
+                throw new ApiError("Nao ha outro caso ainda nao jogado pelo aluno neste roteiro.", 409);
+              }
+              selectedCaseId = Number(
+                alternatives[Math.floor(Math.random() * alternatives.length)].id,
+              );
+              if (existingOverride) {
+                run(
+                  `UPDATE script_case_overrides SET case_id = ?, session_id = ?, created_at = ?
+                   WHERE script_id = ? AND card_id = ? AND difficulty = ?
+                     AND case_index = ? AND player_id = ?`,
+                  [selectedCaseId, fctoolSessionId || null, now, scriptId,
+                    cardId, difficulty, caseIndex, playerId],
+                );
+              } else {
+                run(
+                  `INSERT INTO script_case_overrides
+                     (script_id, card_id, difficulty, case_index, player_id,
+                      base_case_id, case_id, session_id, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [scriptId, cardId, difficulty, caseIndex, playerId, sharedCaseId,
+                    selectedCaseId, fctoolSessionId || null, now],
+                );
+              }
+            }
+            fallbackReason = priorPlay.card_id !== cardId
+              ? "already_played_in_another_card"
+              : "already_played_in_script";
+          }
+        }
+
+        selectionResult = {
+          case_id: selectedCaseId,
+          shared_case_id: sharedCaseId,
+          fallback_used: selectedCaseId !== sharedCaseId,
+          ...(selectedCaseId !== sharedCaseId ? { fallback_reason: fallbackReason } : {}),
+        };
+        return;
+      }
+
+      if (selectionIndex !== null) {
+        const candidates = many(
+          "SELECT id FROM cases WHERE lower(difficulty) = lower(?) ORDER BY id",
+          [difficulty],
+        );
+        if (candidates.length === 0) {
+          throw new ApiError("Nao ha casos cadastrados nesta dificuldade.", 404);
+        }
+        const completedCountRow = one(
+          `SELECT COUNT(DISTINCT s.case_id) AS completed_count
+           FROM game_sessions s
+           JOIN cases c ON c.id = s.case_id
+           WHERE s.card_id = ? AND s.player_id = ? AND s.status = 'completed'
+             AND lower(c.difficulty) = lower(?)`,
+          [cardId, playerId, difficulty],
+        );
+        const effectiveSelectionIndex = Math.max(
+          selectionIndex,
+          Number(completedCountRow?.completed_count ?? 0),
+        );
+        if (!allowReplaySameCase && effectiveSelectionIndex >= candidates.length) {
+          throw new ApiError("Voce ja jogou todos os casos disponiveis nesta dificuldade.", 409);
+        }
+
+        // A mesma turma e o mesmo indice recebem o mesmo caso, mantendo uma
+        // sequencia compartilhada sem limitar a turma a um unico caso.
+        let hash = 2166136261;
+        for (const character of `${cardId}:${difficulty}`) {
+          hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+        }
+        const startIndex = (hash >>> 0) % candidates.length;
+        const candidateIndex = (startIndex + effectiveSelectionIndex) % candidates.length;
+        const selectedCaseId = Number(candidates[candidateIndex].id);
+        run(
+          "UPDATE cards SET case_id = ?, updated_at = ? WHERE card_id = ?",
+          [selectedCaseId, now, cardId],
+        );
+        selectionResult = { case_id: selectedCaseId };
+        return;
+      }
+
       if (card.case_id != null) {
         const existingCase = one(
           "SELECT id FROM cases WHERE id = ? AND lower(difficulty) = lower(?)",
           [card.case_id, difficulty],
         );
         if (existingCase) {
-          selectedCaseId = Number(existingCase.id);
+          selectionResult = { case_id: Number(existingCase.id) };
           return;
         }
       }
@@ -176,29 +398,48 @@ export async function selectCaseForPlayer(input = {}) {
       if (candidates.length === 0) {
         throw new ApiError("Nao ha casos cadastrados nesta dificuldade.", 404);
       }
-      selectedCaseId = Number(candidates[Math.floor(Math.random() * candidates.length)].id);
+      const selectedCaseId = Number(candidates[Math.floor(Math.random() * candidates.length)].id);
       run("UPDATE cards SET case_id = ?, updated_at = ? WHERE card_id = ?", [selectedCaseId, now, cardId]);
+      selectionResult = { case_id: selectedCaseId };
       return;
     }
 
-    const candidates = many(
-      `SELECT c.id FROM cases c
-       WHERE lower(c.difficulty) = lower(?)
-         AND NOT EXISTS (
-           SELECT 1 FROM game_sessions s
-           WHERE s.card_id = ? AND s.player_id = ? AND s.case_id = c.id
-         )
-       ORDER BY c.id`,
-      [difficulty, cardId, playerId],
-    );
+    const candidates = allowReplaySameCase
+      ? many(
+          "SELECT id FROM cases WHERE lower(difficulty) = lower(?) ORDER BY id",
+          [difficulty],
+        )
+      : hasScriptContext
+        ? many(
+            `SELECT c.id FROM cases c
+             WHERE lower(c.difficulty) = lower(?)
+               AND NOT EXISTS (
+                 SELECT 1 FROM game_sessions s
+                 JOIN cards played_card ON played_card.card_id = s.card_id
+                 WHERE played_card.script_id = ? AND s.player_id = ? AND s.case_id = c.id
+               )
+             ORDER BY c.id`,
+            [difficulty, scriptId, playerId],
+          )
+        : many(
+          `SELECT c.id FROM cases c
+           WHERE lower(c.difficulty) = lower(?)
+             AND NOT EXISTS (
+               SELECT 1 FROM game_sessions s
+               WHERE s.card_id = ? AND s.player_id = ? AND s.case_id = c.id
+             )
+           ORDER BY c.id`,
+          [difficulty, cardId, playerId],
+        );
     if (candidates.length === 0) {
       throw new ApiError("Voce ja jogou todos os casos disponiveis nesta dificuldade.", 409);
     }
-    selectedCaseId = Number(candidates[Math.floor(Math.random() * candidates.length)].id);
+    const selectedCaseId = Number(candidates[Math.floor(Math.random() * candidates.length)].id);
     run("UPDATE cards SET case_id = NULL, updated_at = ? WHERE card_id = ?", [now, cardId]);
+    selectionResult = { case_id: selectedCaseId };
   });
 
-  return { case_id: selectedCaseId };
+  return selectionResult;
 }
 
 export async function findResumableGameSession(input = {}) {

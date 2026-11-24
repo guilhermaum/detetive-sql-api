@@ -9,7 +9,8 @@ npm install
 npm run dev
 ```
 
-O servidor fica em `http://localhost:3000`. A base de controle SQLite é criada em `.data/control.db` e persiste casos, níveis, sessões, progresso, dicas utilizadas e execuções SQL. Para usar outro caminho local, defina `SQL_DETECTIVE_CONTROL_DB` antes de iniciar o servidor.
+O servidor fica em `http://localhost:3000`. A base de controle SQLite é criada em `.data/control.db` e persiste casos, níveis, sessões, progresso, dicas utilizadas e execuções SQL. A tabela `cards` também guarda `script_id` e o `session_id` recebido da FCTool; `script_case_assignments` e `script_case_overrides` armazenam os casos compartilhados e as alternativas individuais. Para usar outro caminho local, defina `SQL_DETECTIVE_CONTROL_DB` antes de iniciar o servidor.
+
 
 ## Casos
 
@@ -19,7 +20,7 @@ O servidor fica em `http://localhost:3000`. A base de controle SQLite é criada 
 - `GET /cases/:caseId/database-image` retorna a imagem enviada. As respostas dos casos incluem `database_image_path` e `database_image_url` quando existe uma imagem.
 
 - `GET /cases` lista os casos. Use `GET /cases?difficulty=medium` para filtrar pela dificuldade.
-- `POST /cards/:cardId/cases/select` recebe `player_id`, `difficulty` e `case_distribution` (`aleatorio` ou `mesmo`). No modo aleatorio, escolhe um caso ainda nao jogado por esse jogador no card e dificuldade. No modo `mesmo`, usa o caso compartilhado persistido para o card.
+- `POST /cards/:cardId/cases/select` recebe `script_id`, `session_id`, `player_id`, `difficulty`, `case_distribution` (`aleatorio` ou `mesmo`) e `selection_index`. `script_id` e `session_id` são gravados em `cards`. No modo aleatório, escolhe um caso ainda não jogado pelo aluno no script. No modo `mesmo`, `script_case_assignments` reserva casos diferentes para cards do mesmo script e prioriza casos que nenhum aluno jogou; `script_case_overrides` registra alternativas por aluno quando ele já jogou o caso base e a repetição está desativada. `allow_replay_same_case: "sim"` permite repetir o caso base.
 - `GET /cases/:caseId` obtém um caso.
 - `POST /cases` cria um caso usando `multipart/form-data`. Envie `name`, `description`, `difficulty` e o arquivo `.sql` no campo `database_file`. Exemplo: `curl -X POST http://localhost:3000/cases -F "name=Caso novo" -F "description=Descricao" -F "difficulty=medium" -F "database_file=@./caso.sql;type=text/sql"`.
 - O caminho `database_file_path` e gerado pela API e retornado com o caso; ele aponta para o arquivo SQL salvo pelo servidor. Nao envie `database_name`.
@@ -61,6 +62,7 @@ Em Vercel, a API usa `/tmp` para conseguir iniciar, mas esse armazenamento é te
 ## Ranking e pontuacao
 
 - POST `/game-sessions` recebe `card_id`, `player_id` e `player_name`. O ranking agrupa partidas pelo `card_id` e identifica cada aluno pelo `player_id`.
+- POST `/game-sessions` também aceita `script_id` e `session_id` opcionais para registrar o contexto FCTool em `cards`; as colunas existentes de `game_sessions` não são alteradas. O `session_id` da tabela `cards` corresponde ao contexto da FCTool, enquanto `game_sessions.session_id` continua sendo o identificador interno da API.
 - POST `/game-sessions/:gameSessionId/levels/:levelId/check` aceita `score` junto com `answers` e grava a pontuacao do nivel em `player_progress`.
 - GET `/game-sessions/card/:cardId/ranking?case_id=...` retorna os alunos que concluiram o caso, ordenados pela pontuacao, com `player_id` e `player_name`. Cada aluno aparece uma vez, usando sua melhor pontuacao concluida no caso.
 - `game_sessions.score` permanece em zero ate que todos os niveis sejam concluidos; a conclusao usa a pontuacao acumulada do ultimo nivel.
